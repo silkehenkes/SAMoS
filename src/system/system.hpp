@@ -334,6 +334,7 @@ private:
   BoxPtr m_box;                         //!< Simulation box object
   map<string, GroupPtr> m_group;        //!< All groups in the system 
   Mesh m_mesh;                          //!< Mesh is the data structure that holds tessallation infomration for tissue simulations
+
   bool m_periodic;                      //!< If true, we use periodic boundary conditions 
   int m_time_step;                      //!< Current time step
   int m_run_step;                       //!< Time step for the current run

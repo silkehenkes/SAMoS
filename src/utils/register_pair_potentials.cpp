@@ -69,4 +69,6 @@ void register_pair_potentials(PairPotentialMap& pair_potentials)
   pair_potentials["coulomb3"] = factory<PairCoulomb3PotentialPtr>(); 
   // Register ABP action reaction potential with the pair potentials class factory
   pair_potentials["abp_actreact"] = factory<PairABPActReactPotentialPtr>(); 
+  // Register action reaction nematic potential with the pair potentials class factory
+  pair_potentials["actreact_nematic"] = factory<PairActReactNematicPotentialPtr>();
 }

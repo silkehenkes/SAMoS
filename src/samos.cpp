@@ -875,6 +875,7 @@ int main(int argc, char* argv[])
               if (aligner)
                 aligner->compute();
               int nlist_builds = 0;     // Count how many neighbour list builds we had during this run
+              double Nx,Ny,Nz;
               for (int t = 0; t <= run_data.steps; t++)
               {
                 sys->set_step(time_step);
@@ -884,8 +885,11 @@ int main(int argc, char* argv[])
                   nlist->build();
                   nlist_builds++;
                 }
-                for (int i = 0; i < sys->size(); i++)
+                for (int i = 0; i < sys->size(); i++) {
                   constraint->enforce(sys->get_particle(i));
+                  // compute the local normal
+                  constraint->compute_normal(sys->get_particle(i),Nx,Ny,Nz);
+                }
                 sys->reset_forces();
                 sys->reset_torques();
                 if (pot)
