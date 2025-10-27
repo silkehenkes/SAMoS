@@ -145,9 +145,9 @@ void PairActReactNematicPotential::compute(double dt)
         b = (rintij-r)/rintij;  // force prefactor (positive and between 0 and 1)
 
         // unit vector along bond
-        rijx = dx/r;
-        rijy = dy/r;
-        rijz = dz/r;
+        rijx = dx;
+        rijy = dy;
+        rijz = dz;
         if (!m_3d) {
           // Unit normal in this location - average it from the two local particles
           Nx = 0.5*(pi.Nx + pj.Nx);
@@ -163,7 +163,7 @@ void PairActReactNematicPotential::compute(double dt)
           rijpy = rijz*Nx-rijx*Nz;
           rijpz = rijx*Ny-rijy*Nx;
         }
-        pref = b/(sqrt(3)*0.5*ai_p_aj);
+        pref = b;
 
         // parallel forces
         nidotr = pi.nx*rijx+pi.ny*rijy+pi.nz*rijz;
@@ -192,13 +192,15 @@ void PairActReactNematicPotential::compute(double dt)
         pj.fy -= alpha*fay;
         pj.fz -= alpha*faz;
         // handle torques
-        pi.tau_x += 0.5*alpha*(dy*faz-dz*fay);
-        pi.tau_y += 0.5*alpha*(-dx*faz+dz*fax);
-        pi.tau_z += 0.5*alpha*(dx*fay-dy*fax);
-        // and the other direction - carefully: this is the *same* torque, not the opposite sign ...
-        pj.tau_x += 0.5*alpha*(dy*faz-dz*fay);
-        pj.tau_y += 0.5*alpha*(-dx*faz+dz*fax);
-        pj.tau_z += 0.5*alpha*(dx*fay-dy*fax);
+        if (m_torques) {
+          pi.tau_x += 0.5*alpha*(dy*faz-dz*fay);
+          pi.tau_y += 0.5*alpha*(-dx*faz+dz*fax);
+          pi.tau_z += 0.5*alpha*(dx*fay-dy*fax);
+          // and the other direction - carefully: this is the *same* torque, not the opposite sign ...
+          pj.tau_x += 0.5*alpha*(dy*faz-dz*fay);
+          pj.tau_y += 0.5*alpha*(-dx*faz+dz*fax);
+          pj.tau_z += 0.5*alpha*(dx*fay-dy*fax);
+        }
       }
       
     }

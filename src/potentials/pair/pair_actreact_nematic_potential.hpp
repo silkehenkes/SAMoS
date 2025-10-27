@@ -50,6 +50,7 @@ struct ActReactNematicParameters
 /*! Pair ActReact nematic is an action-reaction preserving implementation of fully nematic cell interactions.
 * That makes it by symmetry a nematic active stress (!), and a reciprocal interaction (!).
 * Individual directions of particles (n) evolve with whatever the integrator says, e.g nematic alignment or even ABP dynamics
+* V1: force density, not force ...
 * They lead to the following pair forces:
 * "Parallel" forces from (Q_i + Q_j) . r_ij:
 * F_ij^par = kpar/(\sqrt{3}R) beta(rij) (sigma_i + sigma_j) . hat{rij}
@@ -57,6 +58,15 @@ struct ActReactNematicParameters
 * "Perpendicular" forces coming from the integral representation of \nabla . \sigma = F:
 * F_{ij}^perp = kperp/(\sqrt{3}R) beta(rij) (sigma_i + sigma_j) . (hat{rij} x N),
 * where N is the local normal to the surface
+*
+* * They lead to the following pair forces:
+* "Parallel" forces from (Q_i + Q_j) . r_ij:
+* F_ij^par = kpar beta(rij) (sigma_i + sigma_j) . rij
+* where sigma_i = p_i n_i ni_i is the nematic stress tensor
+* "Perpendicular" forces coming from the integral representation of \nabla . \sigma = F:
+* F_{ij}^perp = kperp beta(rij) (sigma_i + sigma_j) . (rij x N),
+* where N is the local normal to the surface
+*
 * CAREFUL: No clean full 3d version of this interaction. For 3d (keyword 3d), this part is turnef off.
 * For results that are as intended, set r_int to the interaction radius of the mechanical potential(s) in the system 
 * in particular: r_int = 1+2 eps for soft_attractive, map to re_fact as r_int = 1 + 2*(re_fact-1)  [=1.3 for re_fact=1.15]
@@ -78,6 +88,7 @@ public:
     m_known_params.push_back("r_int");
     m_known_params.push_back("k_par");
     m_known_params.push_back("k_perp");
+    m_known_params.push_back("torques");
     m_known_params.push_back("3d");
     m_known_params.push_back("use_particle_radii");
     m_known_params.push_back("phase_in");
@@ -131,6 +142,16 @@ public:
       m_k_perp = lexical_cast<double>(param["k_perp"]);
     }
     m_msg->write_config("potential.pair.actreact_nematic.k_perp",lexical_cast<string>(m_k_perp));
+     if (param.find("torques") == param.end())
+    {
+      m_msg->msg(Messenger::WARNING,"No use of torques specified. Setting torques to False.");
+      m_torques = false;
+    }
+    else
+    {
+      m_msg->msg(Messenger::INFO,"Use of pair interaction: torques set to true");
+      m_torques = true;
+    }
     if (param.find("3d") == param.end())
     {
       m_msg->msg(Messenger::WARNING,"System is not set to 3d. Assuming 2d surface. Setting 3d to False.");
@@ -239,6 +260,7 @@ private:
   double m_k_par;                       //!< parallel coupling coefficient
   double m_k_perp;                       //!< perpendicular coupling coefficient
   bool m_has_part_params;           //!< true if type specific particle parameters are given
+  bool m_torques;               // whether or not to include the torques
   bool m_3d;                   // whether or not to compute 3d forces
   ActReactNematicParameters*  m_particle_params;   //!< type specific particle parameters
      
