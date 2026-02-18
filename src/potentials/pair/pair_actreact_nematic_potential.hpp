@@ -53,10 +53,10 @@ struct ActReactNematicParameters
 * V1: force density, not force ...
 * They lead to the following pair forces:
 * "Parallel" forces from (Q_i + Q_j) . r_ij:
-* F_ij^par = kpar/(\sqrt{3}R) beta(rij) (sigma_i + sigma_j) . hat{rij}
+* F_ij^par = kpar  beta(rij) (sigma_i + sigma_j) . hat{rij}
 * where sigma_i = p_i n_i ni_i is the nematic stress tensor
 * "Perpendicular" forces coming from the integral representation of \nabla . \sigma = F:
-* F_{ij}^perp = kperp/(\sqrt{3}R) beta(rij) (sigma_i + sigma_j) . (hat{rij} x N),
+* F_{ij}^perp = kperp beta(rij) (sigma_i + sigma_j) . (hat{rij} x N),
 * where N is the local normal to the surface
 *
 * * They lead to the following pair forces:
@@ -90,6 +90,7 @@ public:
     m_known_params.push_back("k_perp");
     m_known_params.push_back("torques");
     m_known_params.push_back("3d");
+    m_known_params.push_back("trace");
     m_known_params.push_back("use_particle_radii");
     m_known_params.push_back("phase_in");
     string param_test = this->params_ok(param);
@@ -163,6 +164,17 @@ public:
       m_3d = true;
     }
 
+    if (param.find("trace") == param.end())
+    {
+      m_msg->msg(Messenger::WARNING,"Forces will use the traceless Q-tensor for active stresses ");
+      m_trace = false;
+    }
+    else
+    {
+      m_msg->msg(Messenger::INFO,"Keeping the trace in Q-tensor to calculate active forces");
+      m_trace = true;
+    }
+
     if (param.find("use_particle_radii") != param.end())
     {
       m_msg->msg(Messenger::WARNING,"action reaction nematic pair potential is set to use particle radii to control its range. Parameter r_int will be ignored.");
@@ -175,20 +187,35 @@ public:
       m_phase_in = true;
       m_msg->write_config("potential.pair.actreact_nematic.phase_in","true");
     }    
-    
-    m_particle_params = new ActReactNematicParameters[m_ntypes];
-    //std::cout << "Initial constructor parameter values:" << endl;
+
+    m_particle_params = new ActReactNematicParameters*[m_ntypes];
     for (int i = 0; i < m_ntypes; i++)
     {
-      m_particle_params[i].p = m_p;
-      m_particle_params[i].r_int = m_r_int;
-      //std::cout << "type " << i << " p " << m_p << " r_int " << m_r_int << endl;
-    }  
+      m_particle_params[i] = new ActReactNematicParameters[m_ntypes];
+      for (int j = 0; j < m_ntypes; j++)
+      {
+        m_particle_params[i][j].p = m_p;
+        m_particle_params[i][j].r_int = m_r_int;
+        m_particle_params[i][j].k_par = m_k_perp;
+        m_particle_params[i][j].k_perp = m_k_par;
+      }
+    }
+
+    //m_particle_params = new ActReactNematicParameters[m_ntypes];
+    //std::cout << "Initial constructor parameter values:" << endl;
+    //for (int i = 0; i < m_ntypes; i++)
+    //{
+    //  m_particle_params[i].p = m_p;
+    //  m_particle_params[i].r_int = m_r_int;
+    // //std::cout << "type " << i << " p " << m_p << " r_int " << m_r_int << endl;
+    //}  
     
   }
 
   virtual ~PairActReactNematicPotential()
   {
+    for (int i = 0; i < m_ntypes; i++)
+      delete [] m_particle_params[i];
     delete [] m_particle_params;
   }
   
@@ -196,17 +223,30 @@ public:
   void set_type_parameters(pairs_type& pair_param)
   {
     map<string,double> param;
-    int type;
+    int type_1, type_2;
     
-    if (pair_param.find("type") == pair_param.end())
+    if (pair_param.find("type_1") == pair_param.end())
     {
-      m_msg->msg(Messenger::ERROR,"type has not been defined for type specific parameters in pair actreact nematic pair potential.");
+      m_msg->msg(Messenger::ERROR,"type_1 has not been defined for pair potential parameters in soft attractive potential.");
       throw runtime_error("Missing key for pair potential parameters.");
     }
+    if (pair_param.find("type_2") == pair_param.end())
+    {
+      m_msg->msg(Messenger::ERROR,"type_2 has not been defined for pair potential parameters in soft attractive potential.");
+      throw runtime_error("Missing key for pair potential parameters.");
+    }
+
+    type_1 = lexical_cast<int>(pair_param["type_1"]);
+    type_2 = lexical_cast<int>(pair_param["type_2"]);
+
+    //if (pair_param.find("type") == pair_param.end())
+    //{
+    //  m_msg->msg(Messenger::ERROR,"type has not been defined for type specific parameters in pair actreact nematic pair potential.");
+    //  throw runtime_error("Missing key for pair potential parameters.");
+    //}
     
-    type = lexical_cast<int>(pair_param["type"]);
     //std::cout << "Setting pair parametes of type:" << type << endl;
-        
+    /*    
     if (pair_param.find("p") != pair_param.end())
     {
       m_msg->msg(Messenger::INFO,"pair actreact nematic potential. Setting activity "+pair_param["p"]+" for particles of type "+lexical_cast<string>(type)+".");
@@ -229,10 +269,64 @@ public:
       param["r_int"] = m_r_int;
     }
     m_msg->write_config("potential.pair.actreact_nematic.type_"+pair_param["type"]+".push",lexical_cast<string>(param["r_int"]));
+    */
 
-        
-    m_particle_params[type-1].p = param["p"];
-    m_particle_params[type-1].r_int = param["r_int"];
+    if (pair_param.find("p") != pair_param.end())
+    {
+      m_msg->msg(Messenger::INFO,"pair actreact nematic potential. Setting activity "+pair_param["p"]+" for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+").");
+      param["p"] = lexical_cast<double>(pair_param["p"]);
+    }
+    else
+    {
+      m_msg->msg(Messenger::INFO,"pair actreact nematic potential. Using default activity  ("+lexical_cast<string>(m_p)+") for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+").");
+      param["p"] = m_p;
+    }
+    if (pair_param.find("r_int") != pair_param.end())
+    {
+      m_msg->msg(Messenger::INFO,"pair actreact nematic potential. Using default interaction radius "+pair_param["r_int"]+" for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+").");
+      param["r_int"] = lexical_cast<double>(pair_param["r_int"]);
+    }
+    else
+    {
+      m_msg->msg(Messenger::INFO,"pair actreact nematic potential. Using default interaction radius  ("+lexical_cast<string>(m_r_int)+") for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+").");
+      param["r_int"] = m_r_int;
+    }
+    if (pair_param.find("k_par") != pair_param.end())
+    {
+      m_msg->msg(Messenger::INFO,"pair actreact nematic potential. Using default k_parallel coefficient "+pair_param["k_par"]+" for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+").");
+      param["k_par"] = lexical_cast<double>(pair_param["k_par"]);
+    }
+    else
+    {
+      m_msg->msg(Messenger::INFO,"pair actreact nematic potential. Using default k_parallel coefficient ("+lexical_cast<string>(m_k_par)+") for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+").");
+      param["k_par"] = m_k_par;
+    }
+    if (pair_param.find("k_perp") != pair_param.end())
+    {
+      m_msg->msg(Messenger::INFO,"pair actreact nematic potential. Using default k_perpendicular coefficient "+pair_param["k_perp"]+" for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+").");
+      param["k_perp"] = lexical_cast<double>(pair_param["k_perp"]);
+    }
+    else
+    {
+      m_msg->msg(Messenger::INFO,"pair actreact nematic potential. Using default k_perpendicular coefficient ("+lexical_cast<string>(m_k_perp)+") for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+").");
+      param["k_perp"] = m_k_perp;
+    }
+
+    m_particle_params[type_1-1][type_2-1].p = param["p"];
+    if (type_1 != type_2)
+      m_particle_params[type_2-1][type_1-1].p = param["p"];
+    m_particle_params[type_1-1][type_2-1].r_int = param["r_int"];
+    if (type_1 != type_2)
+      m_particle_params[type_2-1][type_1-1].r_int = param["r_int"];
+    m_particle_params[type_1-1][type_2-1].k_par = param["k_par"];
+    if (type_1 != type_2)
+      m_particle_params[type_2-1][type_1-1].k_par = param["k_par"];
+    m_particle_params[type_1-1][type_2-1].k_perp = param["k_perp"];
+    if (type_1 != type_2)
+      m_particle_params[type_2-1][type_1-1].k_perp = param["k_perp"];  
+
+    //m_particle_params[type-1].p = param["p"];
+    //m_particle_params[type-1].r_int = param["r_int"];
     //std::cout << "type " << type << " p " << param["p"] << " r_int " << param["r_int"] << endl;
         
     m_has_part_params = true;
@@ -256,13 +350,14 @@ public:
 private:
        
   double m_p;                       //!< activity
-  double m_r_int;                       //!< potential range
-  double m_k_par;                       //!< parallel coupling coefficient
-  double m_k_perp;                       //!< perpendicular coupling coefficient
-  bool m_has_part_params;           //!< true if type specific particle parameters are given
-  bool m_torques;               // whether or not to include the torques
+  double m_r_int;                   //!< potential range
+  double m_k_par;                   //!< parallel coupling coefficient
+  double m_k_perp;                  //!< perpendicular coupling coefficient
+  bool m_has_part_params;      //!< true if type specific particle parameters are given
+  bool m_torques;              // whether or not to include the torques
   bool m_3d;                   // whether or not to compute 3d forces
-  ActReactNematicParameters*  m_particle_params;   //!< type specific particle parameters
+  bool m_trace;                // whether or not have trace in nematic stress tensor
+  ActReactNematicParameters**  m_particle_params;   //!< type specific particle parameters
      
 };
 

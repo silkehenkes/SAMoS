@@ -59,16 +59,16 @@ void PairActReactNematicPotential::compute(double dt)
     Particle& pi = m_system->get_particle(i);
     // type parameters
     // std::cout << m_has_part_params << "type i " << pi.get_type() << endl;
-    if (m_has_part_params)  
-    {
-      poli = m_particle_params[pi.get_type()-1].p;
-      rinti = m_particle_params[pi.get_type()-1].r_int;
-    }
-    else 
-    {
-        poli = m_p;
-        rinti = m_r_int;
-    }
+    //if (m_has_part_params)  
+    //{
+    //  poli = m_particle_params[pi.get_type()-1].p;
+    //  rinti = m_particle_params[pi.get_type()-1].r_int;
+    //}
+    //else 
+    //{
+    //    poli = m_p;
+    //    rinti = m_r_int;
+    //}
     
     // A note on phasing in: m_val, the value object, has been pre-set with the number of phase in time steps
     // It will give a linear interpolation between 0 and 1 based on the current age of the particle in time steps
@@ -97,13 +97,17 @@ void PairActReactNematicPotential::compute(double dt)
       // type parameters
       if (m_has_part_params) 
       {
-        polj = m_particle_params[pj.get_type()-1].p;
-        rintj = m_particle_params[pj.get_type()-1].r_int;
+        poli = m_particle_params[pi.get_type()-1][pj.get_type()-1].p;
+        rinti = m_particle_params[pi.get_type()-1][pj.get_type()-1].r_int;
+        polj = m_particle_params[pj.get_type()-1][pi.get_type()-1].p;
+        rintj = m_particle_params[pj.get_type()-1][pi.get_type()-1].r_int;
       }
       else 
       {
         polj = m_p;
         rintj = m_r_int;
+        poli = m_p;
+        rinti = m_r_int;
       }
       
 
@@ -135,10 +139,11 @@ void PairActReactNematicPotential::compute(double dt)
 
 
       // "Parallel" forces from (Q_i + Q_j) . r_ij:
-      // F_ij^par = kpar/(\sqrt{3}R) beta(rij) (sigma_i + sigma_j) . hat{rij}
-      // where sigma_i = p_i n_i ni_i is the nematic stress tensor
+      // F_ij^par = kpar beta(rij) (sigma_i + sigma_j) . hat{rij}
+      // where sigma_i = p_i n_i n_i is the nematic stress tensor with trace
+      //       sigma_i = p_i n_i n_i - 1/2 I, is the nematic stress tensor without trace (traceless)
       // "Perpendicular" forces coming from the integral representation of \nabla . \sigma = F:
-      // F_{ij}^perp = kperp/(\sqrt{3}R) beta(rij) (sigma_i + sigma_j) . (hat{rij} x N),
+      // F_{ij}^perp = kperp beta(rij) (sigma_i + sigma_j) . (hat{rij} x N),
 
       if (r < rintij)
       {
@@ -153,11 +158,13 @@ void PairActReactNematicPotential::compute(double dt)
           Nx = 0.5*(pi.Nx + pj.Nx);
           Ny = 0.5*(pi.Ny + pj.Ny);
           Nz = 0.5*(pi.Nz + pj.Nz);
+
           // normalise
           N2 = sqrt(Nx*Nx+Ny*Ny+Nz*Nz);
           Nx = Nx/N2;
           Ny = Ny/N2;
           Nz = Nz/N2;
+
           // Components of rijperp
           rijpx = rijy*Nz-rijz*Ny;
           rijpy = rijz*Nx-rijx*Nz;
@@ -169,18 +176,34 @@ void PairActReactNematicPotential::compute(double dt)
         nidotr = pi.nx*rijx+pi.ny*rijy+pi.nz*rijz;
         njdotr = pj.nx*rijx+pj.ny*rijy+pj.nz*rijz;
 
-        fax = m_k_par*pref*(poli*nidotr*pi.nx + polj*njdotr*pj.nx);
-        fay = m_k_par*pref*(poli*nidotr*pi.ny + polj*njdotr*pj.ny);
-        faz = m_k_par*pref*(poli*nidotr*pi.nz + polj*njdotr*pj.nz);
+        if (m_trace){
+          fax = m_k_par*pref*(poli*(nidotr*pi.nx) + polj*(njdotr*pj.nx));
+          fay = m_k_par*pref*(poli*(nidotr*pi.ny) + polj*(njdotr*pj.ny));
+          faz = m_k_par*pref*(poli*(nidotr*pi.nz) + polj*(njdotr*pj.nz));
+        }
+        else
+        {
+          fax = m_k_par*pref*(poli*(nidotr*pi.nx-0.5*rijx) + polj*(njdotr*pj.nx-0.5*rijx));
+          fay = m_k_par*pref*(poli*(nidotr*pi.ny-0.5*rijy) + polj*(njdotr*pj.ny-0.5*rijy));
+          faz = m_k_par*pref*(poli*(nidotr*pi.nz-0.5*rijz) + polj*(njdotr*pj.nz-0.5*rijz));
+        }
 
         // perpendicular forces
         if (!m_3d) {
           nidotrp = pi.nx*rijpx+pi.ny*rijpy+pi.nz*rijpz;
           njdotrp = pj.nx*rijpx+pj.ny*rijpy+pj.nz*rijpz;
 
-          fax += m_k_perp*pref*(poli*nidotrp*pi.nx + polj*njdotrp*pj.nx);
-          fay += m_k_perp*pref*(poli*nidotrp*pi.ny + polj*njdotrp*pj.ny);
-          faz += m_k_perp*pref*(poli*nidotrp*pi.nz + polj*njdotrp*pj.nz);
+          if(m_trace) {
+            fax += m_k_perp*pref*(poli*(nidotrp*pi.nx) + polj*(njdotrp*pj.nx) );
+            fay += m_k_perp*pref*(poli*(nidotrp*pi.ny) + polj*(njdotrp*pj.ny) );
+            faz += m_k_perp*pref*(poli*(nidotrp*pi.nz) + polj*(njdotrp*pj.nz) );
+          }
+          else
+          {
+            fax += m_k_perp*pref*(poli*(nidotrp*pi.nx-0.5*rijpx) + polj*(njdotrp*pj.nx-0.5*rijpx) );
+            fay += m_k_perp*pref*(poli*(nidotrp*pi.ny-0.5*rijpy) + polj*(njdotrp*pj.ny-0.5*rijpy) );
+            faz += m_k_perp*pref*(poli*(nidotrp*pi.nz-0.5*rijpz) + polj*(njdotrp*pj.nz-0.5*rijpz) );
+          }
         }
 
         // Handle force
