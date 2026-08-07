@@ -1,0 +1,3 @@
+After implementing the cmake and make commands in the build, if you finding the error to link the samos after 100% of make is executed please follow the steps below:
+Navigate to build->src->CMakeFiles->samos.dir->link.txt 
+Now append the following keywords to the file link.txt without quotes : "-lgmp -lgmpxx -lmpfr".
