@@ -35,7 +35,9 @@ void PairABPActReactPotential::compute(double dt)
 {
   int N = m_system->size();
   double poli, polj; // polarisation forces 
-  double rinti, rintj; // interaction ranges multipliers
+  // double rinti, rintj; // interaction ranges multipliers
+  double rint_ij;
+  double Cij;
   double ai, aj;
   double alpha_i = 1.0;  // phase in factor for particle i
   double alpha_j = 1.0;  // phase in factor for particle j
@@ -60,12 +62,12 @@ void PairABPActReactPotential::compute(double dt)
     if (m_has_part_params)  
     {
       poli = m_particle_params[pi.get_type()-1].p;
-      rinti = m_particle_params[pi.get_type()-1].r_int;
+      // rinti = m_particle_params[pi.get_type()-1].r_int;
     }
     else 
     {
         poli = m_p;
-        rinti = m_r_int;
+        //rinti = m_r_int;
     }
     
     // A note on phasing in: m_val, the value object, has been pre-set with the number of phase in time steps
@@ -93,15 +95,24 @@ void PairABPActReactPotential::compute(double dt)
       // data for particle 2
       aj = pj.get_radius();
       // type parameters
-      if (m_has_part_params) 
+      if (m_has_pair_params) 
       {
-        polj = m_particle_params[pj.get_type()-1].p;
-        rintj = m_particle_params[pj.get_type()-1].r_int;
+        rint_ij = m_pair_params[pi.get_type()-1][pj.get_type()-1].r_int;
+        Cij = m_pair_params[pi.get_type()-1][pj.get_type()-1].Cij;
       }
       else 
       {
+        rint_ij = m_r_int;
+        Cij = m_Cij;
+      }
+
+      if (m_has_part_params)
+      {
+        polj = m_particle_params[pj.get_type()-1].p;
+      }
+      else
+      {
         polj = m_p;
-        rintj = m_r_int;
       }
       
       double dx = pj.x - pi.x, dy = pj.y - pi.y, dz = pj.z - pi.z;
@@ -115,21 +126,22 @@ void PairABPActReactPotential::compute(double dt)
       else
         ai_p_aj = ai+aj;
 
-      double rintij = 0.5*(rinti+rintj)*ai_p_aj;
+      //double rintij = 0.5*(rinti+rintj)*ai_p_aj;
+      double rint_full = rint_ij*ai_p_aj;
       double b;
       double fax, fay, faz;
 
-      if (r < rintij)
+      if (r < rint_full)
       {
-        b = (rintij-r)/rintij;  // force prefactor (positive and between 0 and 1)
+        b = (rint_full-r)/rint_full;  // force prefactor (positive and between 0 and 1)
         //std::cout << "type j " << pj.get_type() << endl;
         //std::cout << " pol i" << poli << ", rint i " << rinti << std::endl;
         //std::cout << " pol j" << polj << ", rint j " << rintj << std::endl;
         //std::cout << " beta " << b << "alpha " << alpha << std::endl;
         // action-reaction active force magnitude
-        fax = 0.5*(poli*pi.nx-polj*pj.nx);
-        fay = 0.5*(poli*pi.ny-polj*pj.ny);
-        faz = 0.5*(poli*pi.nz-polj*pj.nz);
+        fax = 0.5*Cij*(poli*pi.nx-polj*pj.nx);
+        fay = 0.5*Cij*(poli*pi.ny-polj*pj.ny);
+        faz = 0.5*Cij*(poli*pi.nz-polj*pj.nz);
         // Handle force
         pi.fx += b*alpha*fax;
         pi.fy += b*alpha*fay;

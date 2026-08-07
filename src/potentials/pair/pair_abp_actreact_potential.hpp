@@ -38,10 +38,16 @@ using std::make_pair;
 using std::sqrt;
 
 //! Structure that handles parameters for the abp action reaction pair "potential"
+struct ABPActReactPairParameters
+{
+  // double p;
+  double r_int;
+  double Cij;
+};
+
 struct ABPActReactParameters
 {
   double p;
-  double r_int;
 };
 
 /*! Pair ABP ActReact is an action-reaction preserving implementation of polar active crawling motion.
@@ -87,6 +93,17 @@ public:
       m_p = lexical_cast<double>(param["p"]);
     }
     m_msg->write_config("potential.pair.abp_actreact.p",lexical_cast<string>(m_p));
+    if (param.find("Cij") == param.end())
+    {
+      m_msg->msg(Messenger::WARNING,"No differential strength prefactor Cij for ABP action reaction pair potential. Setting it to 1.0.");
+      m_Cij = 1.0;
+    }
+    else
+    {
+      m_msg->msg(Messenger::INFO,"Global differential strength prefactor Cij for ABP action reaction pair potential "+param["Cij"]+".");
+      m_Cij = lexical_cast<double>(param["Cij"]);
+    }
+    m_msg->write_config("potential.pair.abp_actreact.Cij",lexical_cast<string>(m_Cij));
     if (param.find("r_int") == param.end())
     {
       m_msg->msg(Messenger::WARNING,"No potential range (r_int) specified for ABP action reaction pair potential. Setting it to 1.3.");
@@ -126,17 +143,26 @@ public:
     for (int i = 0; i < m_ntypes; i++)
     {
       m_particle_params[i].p = m_p;
-      m_particle_params[i].r_int = m_r_int;
       //std::cout << "type " << i << " p " << m_p << " r_int " << m_r_int << endl;
     }  
+
+    m_pair_params = new ABPActReactPairParameters*[m_ntypes];
+    for (int i = 0; i < m_ntypes; i++)
+    {
+      m_pair_params[i] = new ABPActReactPairParameters[m_ntypes];
+      for (int j = 0; j < m_ntypes; j++)
+      {
+        m_pair_params[i][j].Cij = m_Cij;
+        m_pair_params[i][j].r_int = m_r_int;
+      }
+    }
     
   }
 
   virtual ~PairABPActReactPotential()
   {
-    //for (int i = 0; i < m_ntypes; i++)
-    //  delete [] m_pair_params[i];
-    //delete [] m_pair_params;
+    for (int i = 0; i < m_ntypes; i++)
+      delete [] m_pair_params[i];
     delete [] m_particle_params;
   }
   
@@ -166,22 +192,8 @@ public:
       param["p"] = m_p;
     }
     m_msg->write_config("potential.pair.abp_actreact.type_"+pair_param["type"]+".push",lexical_cast<string>(param["p"]));
-    if (pair_param.find("r_int") != pair_param.end())
-    {
-      m_msg->msg(Messenger::INFO,"ABP action reaction pair potential. Setting interaction radious "+pair_param["r_int"]+" for particles of type "+lexical_cast<string>(type)+".");
-      param["r_int"] = lexical_cast<double>(pair_param["r_int"]);
-    }
-    else
-    {
-      m_msg->msg(Messenger::INFO,"ABP action reaction pair potential. Using default interaction radius ("+lexical_cast<string>(m_r_int)+") for particles of type "+lexical_cast<string>(type)+".");
-      param["r_int"] = m_r_int;
-    }
-    m_msg->write_config("potential.pair.act_react.type_"+pair_param["type"]+".push",lexical_cast<string>(param["r_int"]));
-
-        
+      
     m_particle_params[type-1].p = param["p"];
-    m_particle_params[type-1].r_int = param["r_int"];
-    //std::cout << "type " << type << " p " << param["p"] << " r_int " << param["r_int"] << endl;
         
     m_has_part_params = true;
   }
@@ -190,10 +202,60 @@ public:
   void set_pair_parameters(pairs_type& pair_param)
   {  
     //std::cout << "Going through empty pair parameter setting" << endl;
+
+     map<string,double> param;
+    int type_1, type_2;
+
+    if (pair_param.find("type_1") == pair_param.end())
+    {
+      m_msg->msg(Messenger::ERROR,"type_1 has not been defined for pair potential parameters in ABP ActReact potential.");
+      throw runtime_error("Missing key for pair potential parameters.");
+    }
+    if (pair_param.find("type_2") == pair_param.end())
+    {
+      m_msg->msg(Messenger::ERROR,"type_2 has not been defined for pair potential parameters in ABP ActReact potential.");
+      throw runtime_error("Missing key for pair potential parameters.");
+    }
+    type_1 = lexical_cast<int>(pair_param["type_1"]);
+    type_2 = lexical_cast<int>(pair_param["type_2"]);
+
+    if (pair_param.find("r_int") != pair_param.end())
+    {
+      m_msg->msg(Messenger::INFO,"ABP action reaction pair potential. Setting interaction radious "+pair_param["r_int"]+" for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+".");
+      param["r_int"] = lexical_cast<double>(pair_param["r_int"]);
+    }
+    else
+    {
+      m_msg->msg(Messenger::INFO,"ABP action reaction pair potential. Using default interaction radius ("+lexical_cast<string>(m_r_int)+") for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+".");
+      param["r_int"] = m_r_int;
+    }
+    m_msg->write_config("potential.pair.act_react.type_"+pair_param["type_1"]+"_and_type_"+pair_param["type_2"]+".push",lexical_cast<string>(param["r_int"]));
+
+    if (pair_param.find("Cij") != pair_param.end())
+    {
+      m_msg->msg(Messenger::INFO,"ABP action reaction pair potential. Setting prefactor Cij values "+pair_param["Cij"]+" for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+".");
+      param["Cij"] = lexical_cast<double>(pair_param["Cij"]);
+    }
+    else
+    {
+      m_msg->msg(Messenger::INFO,"ABP action reaction pair potential. Using default prefactor Cij values ("+lexical_cast<string>(m_Cij)+") for particle pair of types ("+lexical_cast<string>(type_1)+" and "+lexical_cast<string>(type_2)+".");
+      param["Cij"] = m_Cij;
+    }
+    m_msg->write_config("potential.pair.act_react.type_"+pair_param["type_1"]+"_and_type_"+pair_param["type_2"]+".push",lexical_cast<string>(param["Cij"]));
+
+    m_pair_params[type_1-1][type_2-1].r_int = param["r_int"];
+    if (type_1 != type_2)
+      m_pair_params[type_2-1][type_1-1].r_int = param["r_int"];
+    m_pair_params[type_1-1][type_2-1].Cij = param["Cij"];
+    if (type_1 != type_2)
+      m_pair_params[type_2-1][type_1-1].Cij = param["Cij"];
+
+    m_has_pair_params = true;
+
   }
+
+
                                                                                                                 
-  
-  
   //! Returns true since soft potential needs neighbour list
   bool need_nlist() { return true; }
   
@@ -203,11 +265,14 @@ public:
   
 private:
        
-  double m_p;                       //!< polarisation force
-  double m_r_int;                       //!< potential range
-  bool m_has_part_params;           //!< true if type specific particle parameters are given
-  bool m_torques;                   // whether or not to include pair torques from these pair forces
+  double m_p;                                       //!< polarisation force
+  double m_r_int;                                   //!< potential range
+  double m_Cij;                                     //!< differential strength prefactor   
+  bool m_has_part_params, m_has_pair_params;        //!< true if type and pair specific particle parameters are given
+  bool m_torques;                                   // whether or not to include pair torques from these pair forces
+  
   ABPActReactParameters*  m_particle_params;   //!< type specific particle parameters 
+  ABPActReactPairParameters**  m_pair_params;   //!< pair specific particle parameters 
      
 };
 

@@ -37,7 +37,9 @@ void PairActReactNematicPotential::compute(double dt)
 {
   int N = m_system->size();
   double poli, polj; // activities
-  double rinti, rintj; // interaction ranges multipliers
+  //double rinti, rintj; // interaction ranges multipliers
+  double rint_ij;
+  double k_par, k_perp;
   double ai, aj;
   double alpha_i = 1.0;  // phase in factor for particle i
   double alpha_j = 1.0;  // phase in factor for particle j
@@ -94,20 +96,29 @@ void PairActReactNematicPotential::compute(double dt)
       }
       // data for particle 2
       aj = pj.get_radius();
+      // pair parameters
+      if (m_has_pair_params) 
+      {
+        rint_ij = m_pair_params[pi.get_type()-1][pj.get_type()-1].r_int;
+        k_par = m_pair_params[pi.get_type()-1][pj.get_type()-1].k_par;
+        k_perp = m_pair_params[pi.get_type()-1][pj.get_type()-1].k_perp;
+      }
+      else 
+      {
+        rint_ij = m_r_int;
+        k_par = m_k_par;
+        k_perp = m_k_perp;
+      }
       // type parameters
       if (m_has_part_params) 
       {
-        poli = m_particle_params[pi.get_type()-1][pj.get_type()-1].p;
-        rinti = m_particle_params[pi.get_type()-1][pj.get_type()-1].r_int;
-        polj = m_particle_params[pj.get_type()-1][pi.get_type()-1].p;
-        rintj = m_particle_params[pj.get_type()-1][pi.get_type()-1].r_int;
+        poli = m_particle_params[pi.get_type()-1].p;
+        polj = m_particle_params[pj.get_type()-1].p;
       }
       else 
       {
         polj = m_p;
-        rintj = m_r_int;
         poli = m_p;
-        rinti = m_r_int;
       }
       
 
@@ -122,7 +133,7 @@ void PairActReactNematicPotential::compute(double dt)
       else
         ai_p_aj = ai+aj;
 
-      double rintij = 0.5*(rinti+rintj)*ai_p_aj;
+      double rintij_full = rint_ij*ai_p_aj;
       double b;
       double fax, fay, faz;
       double nidotr;
@@ -145,9 +156,9 @@ void PairActReactNematicPotential::compute(double dt)
       // "Perpendicular" forces coming from the integral representation of \nabla . \sigma = F:
       // F_{ij}^perp = kperp beta(rij) (sigma_i + sigma_j) . (hat{rij} x N),
 
-      if (r < rintij)
+      if (r < rintij_full)
       {
-        b = (rintij-r)/rintij;  // force prefactor (positive and between 0 and 1)
+        b = (rintij_full-r)/rintij_full;  // force prefactor (positive and between 0 and 1)
 
         // unit vector along bond
         rijx = dx;
@@ -177,15 +188,15 @@ void PairActReactNematicPotential::compute(double dt)
         njdotr = pj.nx*rijx+pj.ny*rijy+pj.nz*rijz;
 
         if (m_trace){
-          fax = m_k_par*pref*(poli*(nidotr*pi.nx) + polj*(njdotr*pj.nx));
-          fay = m_k_par*pref*(poli*(nidotr*pi.ny) + polj*(njdotr*pj.ny));
-          faz = m_k_par*pref*(poli*(nidotr*pi.nz) + polj*(njdotr*pj.nz));
+          fax = k_par*pref*(poli*(nidotr*pi.nx) + polj*(njdotr*pj.nx));
+          fay = k_par*pref*(poli*(nidotr*pi.ny) + polj*(njdotr*pj.ny));
+          faz = k_par*pref*(poli*(nidotr*pi.nz) + polj*(njdotr*pj.nz));
         }
         else
         {
-          fax = m_k_par*pref*(poli*(nidotr*pi.nx-0.5*rijx) + polj*(njdotr*pj.nx-0.5*rijx));
-          fay = m_k_par*pref*(poli*(nidotr*pi.ny-0.5*rijy) + polj*(njdotr*pj.ny-0.5*rijy));
-          faz = m_k_par*pref*(poli*(nidotr*pi.nz-0.5*rijz) + polj*(njdotr*pj.nz-0.5*rijz));
+          fax = k_par*pref*(poli*(nidotr*pi.nx-0.5*rijx) + polj*(njdotr*pj.nx-0.5*rijx));
+          fay = k_par*pref*(poli*(nidotr*pi.ny-0.5*rijy) + polj*(njdotr*pj.ny-0.5*rijy));
+          faz = k_par*pref*(poli*(nidotr*pi.nz-0.5*rijz) + polj*(njdotr*pj.nz-0.5*rijz));
         }
 
         // perpendicular forces
@@ -194,15 +205,15 @@ void PairActReactNematicPotential::compute(double dt)
           njdotrp = pj.nx*rijpx+pj.ny*rijpy+pj.nz*rijpz;
 
           if(m_trace) {
-            fax += m_k_perp*pref*(poli*(nidotrp*pi.nx) + polj*(njdotrp*pj.nx) );
-            fay += m_k_perp*pref*(poli*(nidotrp*pi.ny) + polj*(njdotrp*pj.ny) );
-            faz += m_k_perp*pref*(poli*(nidotrp*pi.nz) + polj*(njdotrp*pj.nz) );
+            fax += k_perp*pref*(poli*(nidotrp*pi.nx) + polj*(njdotrp*pj.nx) );
+            fay += k_perp*pref*(poli*(nidotrp*pi.ny) + polj*(njdotrp*pj.ny) );
+            faz += k_perp*pref*(poli*(nidotrp*pi.nz) + polj*(njdotrp*pj.nz) );
           }
           else
           {
-            fax += m_k_perp*pref*(poli*(nidotrp*pi.nx-0.5*rijpx) + polj*(njdotrp*pj.nx-0.5*rijpx) );
-            fay += m_k_perp*pref*(poli*(nidotrp*pi.ny-0.5*rijpy) + polj*(njdotrp*pj.ny-0.5*rijpy) );
-            faz += m_k_perp*pref*(poli*(nidotrp*pi.nz-0.5*rijpz) + polj*(njdotrp*pj.nz-0.5*rijpz) );
+            fax += k_perp*pref*(poli*(nidotrp*pi.nx-0.5*rijpx) + polj*(njdotrp*pj.nx-0.5*rijpx) );
+            fay += k_perp*pref*(poli*(nidotrp*pi.ny-0.5*rijpy) + polj*(njdotrp*pj.ny-0.5*rijpy) );
+            faz += k_perp*pref*(poli*(nidotrp*pi.nz-0.5*rijpz) + polj*(njdotrp*pj.nz-0.5*rijpz) );
           }
         }
 
