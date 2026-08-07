@@ -35,6 +35,10 @@
 # * 
 # * ************************************************************** 
 
+find_package(Eigen3 REQUIRED NO_MODULE)
+
+message(STATUS "Found Eigen3 ${Eigen3_VERSION}")
+
 #find_package(Eigen3 REQUIRED)
 
 #include_directories(${Eigen3_INCLUDE_DIRS})

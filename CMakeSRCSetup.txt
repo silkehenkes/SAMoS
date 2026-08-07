@@ -59,11 +59,36 @@ file(GLOB INITIAL_CONFIGURATION_BUILDER_SRC ${SAMoS_SOURCE_DIR}/utils)
 #######################
 ## Configure the version info header file
 
+# Obtain the configuration date
+if(NOT WIN32)
+    execute_process(
+        COMMAND date "+%Y-%m-%d %H:%M:%S"
+        OUTPUT_VARIABLE COMPILE_DATE
+        ERROR_VARIABLE DATE_ERROR
+        RESULT_VARIABLE DATE_RESULT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+else()
+    execute_process(
+        COMMAND cmd /c date /T
+        OUTPUT_VARIABLE COMPILE_DATE
+        ERROR_VARIABLE DATE_ERROR
+        RESULT_VARIABLE DATE_RESULT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+
+if(NOT DATE_RESULT EQUAL 0)
+    set(COMPILE_DATE "unknown")
+    message(WARNING "Could not determine compilation date: ${DATE_ERROR}")
+endif()
 
 # handle linux/mac and windows dates differently
-if (NOT WIN32)
-	exec_program("date" OUTPUT_VARIABLE COMPILE_DATE)
-else(NOT WIN32)
-	exec_program("cmd" ARGS "/c date /T" OUTPUT_VARIABLE COMPILE_DATE)
-endif (NOT WIN32)
+#if (NOT WIN32)
+#	exec_program("date" OUTPUT_VARIABLE COMPILE_DATE)
+#else(NOT WIN32)
+#	exec_program("cmd" ARGS "/c date /T" OUTPUT_VARIABLE COMPILE_DATE)
+#endif (NOT WIN32)
 

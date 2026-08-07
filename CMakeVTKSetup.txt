@@ -29,12 +29,29 @@
 # * 
 # * ************************************************************** 
 
-find_package(VTK)
+find_package(VTK QUIET)
+
 if(VTK_FOUND)
-  include(${VTK_USE_FILE})
-  add_definitions(-DHAS_VTK)
-  set(VTK_LIBS ${VTK_LIBRARIES})
-else(VTK_FOUND)
-  MESSAGE("No VTK library found. VTP support is not mandatory, but some features will be disabled. VTP output capability will not be compiled into the code.")
-  set(VTK_LIBS "")
-endif(VTK_FOUND)
+    message(STATUS "Found VTK ${VTK_VERSION}")
+
+    add_compile_definitions(HAS_VTK)
+
+    # Modern VTK exposes imported targets through VTK_LIBRARIES.
+    set(VTK_LIBS ${VTK_LIBRARIES})
+else()
+    message(STATUS
+        "VTK was not found. VTP output support will be disabled."
+    )
+
+    set(VTK_LIBS "")
+endif()
+
+#find_package(VTK)
+#if(VTK_FOUND)
+#  include(${VTK_USE_FILE})
+#  add_definitions(-DHAS_VTK)
+#  set(VTK_LIBS ${VTK_LIBRARIES})
+#else(VTK_FOUND)
+#  MESSAGE("No VTK library found. VTP support is not mandatory, but some features will be disabled. VTP output capability will not be compiled into the code.")
+#  set(VTK_LIBS "")
+#endif(VTK_FOUND)

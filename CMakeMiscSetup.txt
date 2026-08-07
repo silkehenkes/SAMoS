@@ -29,29 +29,85 @@
 # * 
 # * ************************************************************** 
 
-## Set the option for swithcihng on and off of the static linking
-OPTION(ENABLE_STATIC "Link as many libraries as possible statically, cannot be changed after the first run of CMake" OFF)
+#################################
+# Optional static linking
+
+option(
+    ENABLE_STATIC
+    "Link as many libraries as possible statically"
+    OFF
+)
 mark_as_advanced(ENABLE_STATIC)
+
+#################################
+# Optional documentation
+
+find_package(Doxygen QUIET)
+
+if(Doxygen_FOUND)
+    execute_process(
+        COMMAND "${DOXYGEN_EXECUTABLE}" --version
+        OUTPUT_VARIABLE DOXYGEN_VERSION
+        ERROR_VARIABLE DOXYGEN_VERSION_ERROR
+        RESULT_VARIABLE DOXYGEN_VERSION_RESULT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if(DOXYGEN_VERSION_RESULT EQUAL 0)
+        message(STATUS "Found Doxygen ${DOXYGEN_VERSION}")
+        option(
+            ENABLE_DOXYGEN
+            "Enable documentation generation with Doxygen"
+            ON
+        )
+    else()
+        message(WARNING
+            "Could not determine Doxygen version: "
+            "${DOXYGEN_VERSION_ERROR}"
+        )
+        option(
+            ENABLE_DOXYGEN
+            "Enable documentation generation with Doxygen"
+            OFF
+        )
+    endif()
+else()
+    option(
+        ENABLE_DOXYGEN
+        "Enable documentation generation with Doxygen"
+        OFF
+    )
+endif()
+
+#################################
+# Threads
+
+find_package(Threads REQUIRED)
+
+
+## Set the option for swithcihng on and off of the static linking
+#OPTION(ENABLE_STATIC "Link as many libraries as possible statically, cannot be changed after the first run of CMake" OFF)
+#mark_as_advanced(ENABLE_STATIC)
 ## Optionally enable documentation build
-find_package(Doxygen)
-if (DOXYGEN_FOUND)
+#find_package(Doxygen)
+#if (DOXYGEN_FOUND)
 # get the doxygen version
-exec_program(${DOXYGEN_EXECUTABLE} ${SAMoS_SOURCE_DIR} ARGS --version OUTPUT_VARIABLE DOXYGEN_VERSION)
-STRING(REGEX REPLACE "^([0-9]+)\\.[0-9]+\\.[0-9]+.*" "\\1" DOXYGEN_VERSION_MAJOR "${DOXYGEN_VERSION}")
-STRING(REGEX REPLACE "^[0-9]+\\.([0-9])+\\.[0-9]+.*" "\\1" DOXYGEN_VERSION_MINOR "${DOXYGEN_VERSION}")
-STRING(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" DOXYGEN_VERSION_PATCH "${DOXYGEN_VERSION}")
+#exec_program(${DOXYGEN_EXECUTABLE} ${SAMoS_SOURCE_DIR} ARGS --version OUTPUT_VARIABLE DOXYGEN_VERSION)
+#STRING(REGEX REPLACE "^([0-9]+)\\.[0-9]+\\.[0-9]+.*" "\\1" DOXYGEN_VERSION_MAJOR "${DOXYGEN_VERSION}")
+#STRING(REGEX REPLACE "^[0-9]+\\.([0-9])+\\.[0-9]+.*" "\\1" DOXYGEN_VERSION_MINOR "${DOXYGEN_VERSION}")
+#STRING(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" DOXYGEN_VERSION_PATCH "${DOXYGEN_VERSION}")
 
-if (DOXYGEN_VERSION_MAJOR GREATER 0 AND DOXYGEN_VERSION_MINOR GREATER 4 AND DOXYGEN_VERSION_PATCH GREATER 0)
-OPTION(ENABLE_DOXYGEN "Enables building of documentation with doxygen" ON)
-else (DOXYGEN_VERSION_MAJOR GREATER 0 AND DOXYGEN_VERSION_MINOR GREATER 4 AND DOXYGEN_VERSION_PATCH GREATER 0)
-message(STATUS "Doxygen version less than 1.5.5, defaulting ENABLE_DOXYGEN=OFF")
-OPTION(ENABLE_DOXYGEN "Enables building of documentation with doxygen" OFF)
-endif (DOXYGEN_VERSION_MAJOR GREATER 0 AND DOXYGEN_VERSION_MINOR GREATER 4 AND DOXYGEN_VERSION_PATCH GREATER 0)
+#if (DOXYGEN_VERSION_MAJOR GREATER 0 AND DOXYGEN_VERSION_MINOR GREATER 4 AND DOXYGEN_VERSION_PATCH GREATER 0)
+#OPTION(ENABLE_DOXYGEN "Enables building of documentation with doxygen" ON)
+#else (DOXYGEN_VERSION_MAJOR GREATER 0 AND DOXYGEN_VERSION_MINOR GREATER 4 AND DOXYGEN_VERSION_PATCH GREATER 0)
+#message(STATUS "Doxygen version less than 1.5.5, defaulting ENABLE_DOXYGEN=OFF")
+#OPTION(ENABLE_DOXYGEN "Enables building of documentation with doxygen" OFF)
+#endif (DOXYGEN_VERSION_MAJOR GREATER 0 AND DOXYGEN_VERSION_MINOR GREATER 4 AND DOXYGEN_VERSION_PATCH GREATER 0)
 
-endif (DOXYGEN_FOUND)
+#endif (DOXYGEN_FOUND)
 
 ##################################
 ## find the threads library
-find_package(Threads)
+#find_package(Threads)
 
 

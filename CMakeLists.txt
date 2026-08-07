@@ -29,17 +29,24 @@
 # * 
 # * ************************************************************** 
 
+cmake_minimum_required(VERSION 3.16...3.30)
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6 FATAL_ERROR)
-if(COMMAND cmake_policy)
-	cmake_policy(SET CMP0003 NEW)
-endif(COMMAND cmake_policy)
+# Policies needed by older dependency configuration files
+if(POLICY CMP0003)
+    cmake_policy(SET CMP0003 NEW)
+endif()
 
-find_program(CMAKE_C_COMPILER NAMES $ENV{CC} gcc PATHS ENV PATH NO_DEFAULT_PATH)
-find_program(CMAKE_CXX_COMPILER NAMES $ENV{CXX} g++ PATHS ENV PATH NO_DEFAULT_PATH)
+# Temporary compatibility for dependency packages that still use FindBoost.
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 OLD)
+endif()
 
-project (SAMoS C CXX)
+project(SAMoS LANGUAGES C CXX)
 
+# CGAL requires C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(ENABLE_STATIC)
   SET (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
@@ -68,8 +75,6 @@ set(GSL_LIBS ${GSL_LIBRARIES})
 set(MATH_LIB -lm)
 set(SAMoS_LIBS ${GSL_LIBS} ${MATH_LIB} ${BOOST_LIBS} ${VTK_LIBS})
 
-
-
 # ##############################################
 # place all executables in the build directory 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -81,5 +86,4 @@ if (ENABLE_DOXYGEN)
 endif (ENABLE_DOXYGEN)
 
 add_subdirectory(src)
-
 

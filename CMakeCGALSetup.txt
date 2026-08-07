@@ -29,6 +29,20 @@
 # * 
 # * ************************************************************** 
 
+find_package(CGAL REQUIRED COMPONENTS Core)
+
+if(CGAL_FOUND)
+    message(STATUS "Found CGAL ${CGAL_VERSION}")
+
+    set(FOUND_CGAL_LIBRARY TRUE)
+    add_compile_definitions(HAS_CGAL)
+
+    # The installed CGAL requires C++17.
+    set(CXX_STANDARD 17)
+else()
+    set(FOUND_CGAL_LIBRARY FALSE)
+    message(FATAL_ERROR "CGAL was not found")
+endif()
 # setup the CGAL static linkage
 if(ENABLE_STATIC)
   set(CGAL_BUILD_SHARED_LIBS "OFF")
@@ -36,18 +50,18 @@ else(ENABLE_STATIC)
   set(CGAL_BUILD_SHARED_LIBS "ON")
 endif(ENABLE_STATIC)
 
-find_package(CGAL COMPONENTS Core )
+# find_package(CGAL COMPONENTS Core )
 
-if ( CGAL_FOUND )
-  include( ${CGAL_USE_FILE} )
-  include( CGAL_CreateSingleSourceCGALProgram )
-  set(FOUND_CGAL_LIBRARY true)
-  add_definitions(-DHAS_CGAL)
-  if (CGAL_MAJOR_VERSION LESS 5)
-    set(CXX_STANDARD 11)
-  else()
-    set(CXX_STANDARD 14)
-  endif()
-else(CGAL_FOUND)
-  set(FOUND_CGAL_LIBRARY false)
-endif(CGAL_FOUND)
+# if ( CGAL_FOUND )
+#  include( ${CGAL_USE_FILE} )
+#  include( CGAL_CreateSingleSourceCGALProgram )
+#  set(FOUND_CGAL_LIBRARY true)
+#  add_definitions(-DHAS_CGAL)
+# if (CGAL_MAJOR_VERSION LESS 5)
+#    set(CXX_STANDARD 11)
+#  else()
+#    set(CXX_STANDARD 14)
+#  endif()
+#else(CGAL_FOUND)
+#  set(FOUND_CGAL_LIBRARY false)
+#endif(CGAL_FOUND)
